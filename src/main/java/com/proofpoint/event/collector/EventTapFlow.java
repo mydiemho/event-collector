@@ -15,7 +15,7 @@
  */
 package com.proofpoint.event.collector;
 
-import com.proofpoint.event.collector.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 
 import java.net.URI;
 import java.util.Set;

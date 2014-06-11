@@ -20,6 +20,9 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import com.proofpoint.event.collector.taps.BatchProcessorConfig;
+import com.proofpoint.event.collector.taps.BatchProcessorFactory;
+import com.proofpoint.event.collector.taps.BatchProcessorFactoryImpl;
 
 import java.util.concurrent.ScheduledExecutorService;
 

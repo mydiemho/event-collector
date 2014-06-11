@@ -62,11 +62,11 @@ public class TestStoredObjectCombiner
         DataSize targetFileSize = new DataSize(512, DataSize.Unit.MEGABYTE);
         StoredObjectCombiner combiner = new StoredObjectCombiner("nodeId", metadataStore, storageSystem, eventClient, stagingArea, targetArea, targetFileSize, combineDaysAgoStart, combineDaysAgoEnd, "testGroup");
 
-        // create initial set of objects
+        // createHttpFlow initial set of objects
         StoredObject objectA = new StoredObject(buildS3Location(hourLocation, "a"), UUID.randomUUID().toString(), 1000, 0);
         StoredObject objectB = new StoredObject(buildS3Location(hourLocation, "b"), UUID.randomUUID().toString(), 1000, 0);
 
-        // create single test group
+        // createHttpFlow single test group
         List<StoredObject> smallGroup = newArrayList(objectA, objectB);
         storageSystem.addObjects(smallGroup);
 
@@ -115,7 +115,7 @@ public class TestStoredObjectCombiner
         DataSize targetFileSize = new DataSize(512, DataSize.Unit.MEGABYTE);
         StoredObjectCombiner combiner = new StoredObjectCombiner("nodeId", metadataStore, storageSystem, eventClient, stagingArea, targetArea, targetFileSize, combineDaysAgoStart, combineDaysAgoEnd, "testGroup");
 
-        // create initial set of objects
+        // createHttpFlow initial set of objects
         StoredObject objectA = new StoredObject(buildS3Location(hourLocation, "a"), randomUUID(), megabytes(400), 0);
         StoredObject objectB = new StoredObject(buildS3Location(hourLocation, "b"), randomUUID(), megabytes(200), 0);
         StoredObject objectC = new StoredObject(buildS3Location(hourLocation, "c"), randomUUID(), megabytes(200), 0);
@@ -123,7 +123,7 @@ public class TestStoredObjectCombiner
         StoredObject objectE = new StoredObject(buildS3Location(hourLocation, "e"), randomUUID(), megabytes(300), 0);
         StoredObject objectF = new StoredObject(buildS3Location(hourLocation, "f"), randomUUID(), megabytes(100), 0);
 
-        // create test groups based on object size
+        // createHttpFlow test groups based on object size
         List<StoredObject> group1 = newArrayList(objectA, objectB);
         List<StoredObject> group2 = newArrayList(objectC, objectD, objectE);
         List<StoredObject> group3 = newArrayList(objectF);
@@ -186,7 +186,7 @@ public class TestStoredObjectCombiner
         DataSize targetFileSize = new DataSize(512, DataSize.Unit.MEGABYTE);
         StoredObjectCombiner combiner = new StoredObjectCombiner("nodeId", metadataStore, storageSystem, eventClient, stagingArea, targetArea, targetFileSize, combineDaysAgoStart, combineDaysAgoEnd, "testGroup");
 
-        // create initial set of objects
+        // createHttpFlow initial set of objects
         StoredObject objectA = new StoredObject(buildS3Location(hourLocation, "a"), UUID.randomUUID().toString(), 1000, 0);
         StoredObject objectB = new StoredObject(buildS3Location(hourLocation, "b"), UUID.randomUUID().toString(), 1000, 0);
         List<StoredObject> smallGroup = ImmutableList.of(objectA, objectB);
@@ -220,7 +220,7 @@ public class TestStoredObjectCombiner
         TestingCombineObjectMetadataStore metadataStore = new TestingCombineObjectMetadataStore();
         DataSize targetFileSize = new DataSize(512, DataSize.Unit.MEGABYTE);
 
-        // create set of objects
+        // createHttpFlow set of objects
         DateTime allowedDate = DateTime.now(UTC).minusDays(combineDaysAgoStart);
         String allowedDatePartition = DATE_FORMAT.print(allowedDate);
         String allowedHourPartition = HOUR_FORMAT.print(allowedDate);
@@ -240,7 +240,7 @@ public class TestStoredObjectCombiner
         StoredObject olderEventA2 = new StoredObject(buildS3Location(olderEventAHourLocation, "olderB"), randomUUID(), 1000, 0);
         EventPartition olderEventAPartition = new EventPartition("eventA", DATE_FORMAT.print(olderDate), HOUR_FORMAT.print(olderDate));
 
-        // create single test group
+        // createHttpFlow single test group
         storageSystem.addObjects(ImmutableList.of(allowedEventA1, allowedEventA2, allowedEventB1, allowedEventB2, olderEventA1, olderEventA2));
 
         // combine
@@ -264,7 +264,7 @@ public class TestStoredObjectCombiner
         TestingCombineObjectMetadataStore metadataStore = new TestingCombineObjectMetadataStore();
         DataSize targetFileSize = new DataSize(512, DataSize.Unit.MEGABYTE);
 
-        // create set of objects
+        // createHttpFlow set of objects
         DateTime allowedDate = DateTime.now(UTC).minusDays(combineDaysAgoStart);
         String allowedDatePartition = DATE_FORMAT.print(allowedDate);
         String allowedHourPartition = HOUR_FORMAT.print(allowedDate);
@@ -284,7 +284,7 @@ public class TestStoredObjectCombiner
         StoredObject newerEventA2 = new StoredObject(buildS3Location(newerEventAHourLocation, "d"), randomUUID(), 1000, 0);
         EventPartition newerEventAPartition = new EventPartition("eventA", DATE_FORMAT.print(newerDate), HOUR_FORMAT.print(newerDate));
 
-        // create single test group
+        // createHttpFlow single test group
         storageSystem.addObjects(ImmutableList.of(allowedEventA1, allowedEventA2, allowedEventB1, allowedEventB2, newerEventA1, newerEventA2));
 
         // combine

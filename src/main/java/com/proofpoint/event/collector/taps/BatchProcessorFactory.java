@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.proofpoint.event.collector;
+package com.proofpoint.event.collector.taps;
 
-import com.proofpoint.event.collector.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 
 public interface BatchProcessorFactory
 {

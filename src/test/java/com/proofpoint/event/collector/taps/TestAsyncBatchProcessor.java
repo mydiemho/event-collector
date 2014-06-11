@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.proofpoint.event.collector;
+package com.proofpoint.event.collector.taps;
 
-import com.proofpoint.event.collector.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.Event;
+import com.proofpoint.event.collector.taps.AsyncBatchProcessor;
+import com.proofpoint.event.collector.taps.BatchProcessor;
+import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.taps.BatchProcessorConfig;
 import org.joda.time.DateTime;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

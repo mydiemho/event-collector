@@ -283,7 +283,7 @@ public class StoredObjectCombiner
             return;
         }
 
-        // create new manifest from existing manifest with new staged objects
+        // createHttpFlow new manifest from existing manifest with new staged objects
         CombinedGroup newGroup = buildCombinedGroup(currentGroup, stagedObjects);
 
         // attempt to write new manifest
@@ -361,7 +361,7 @@ public class StoredObjectCombiner
                 break;
             }
 
-            // create new combined object if necessary
+            // createHttpFlow new combined object if necessary
             if (!added) {
                 group = group.addNewCombinedObject(nodeId, ImmutableList.of(newObject));
             }

@@ -24,7 +24,9 @@ import com.proofpoint.discovery.client.ServiceDescriptor;
 import com.proofpoint.discovery.client.ServiceSelector;
 import com.proofpoint.discovery.client.ServiceState;
 import com.proofpoint.discovery.client.testing.StaticServiceSelector;
-import com.proofpoint.event.collector.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.taps.BatchProcessor;
+import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
+import com.proofpoint.event.collector.taps.BatchProcessorFactory;
 import com.proofpoint.log.Logger;
 import com.proofpoint.testing.SerialScheduledExecutorService;
 import org.joda.time.DateTime;
@@ -650,7 +652,7 @@ public class TestEventTapWriter
     @Test
     public void testRefreshFlowsUpdatesExistingProcessor()
     {
-        // If the taps for a given event type changes, don't create the processor
+        // If the taps for a given event type changes, don't createHttpFlow the processor
         updateThenRefreshFlowsThenCheck(tapA1);
         writeEvents(eventsA[0]);
         forTap(tapA1).verifyEvents(eventsA[0]);

@@ -20,6 +20,7 @@ import com.proofpoint.bootstrap.Bootstrap;
 import com.proofpoint.discovery.client.DiscoveryModule;
 import com.proofpoint.discovery.client.announce.Announcer;
 import com.proofpoint.event.client.JsonEventModule;
+import com.proofpoint.event.collector.taps.TapModule;
 import com.proofpoint.http.server.HttpServerModule;
 import com.proofpoint.jaxrs.JaxrsModule;
 import com.proofpoint.jmx.JmxHttpModule;
@@ -50,7 +51,7 @@ public class Main
                             new JmxModule(),
                             new JmxHttpModule(),
                             new JsonEventModule(),
-                            new EventTapModule(),
+                            new TapModule(),
                             new ReportingModule(),
                             new ReportingClientModule(),
                             new MainModule());

@@ -22,6 +22,8 @@ import com.proofpoint.discovery.client.ServiceDescriptor;
 import com.proofpoint.discovery.client.ServiceSelector;
 import com.proofpoint.discovery.client.ServiceType;
 import com.proofpoint.event.collector.EventTapWriter.EventTypePolicy.FlowPolicy;
+import com.proofpoint.event.collector.taps.BatchProcessor;
+import com.proofpoint.event.collector.taps.BatchProcessorFactory;
 import com.proofpoint.log.Logger;
 import com.proofpoint.units.Duration;
 import org.weakref.jmx.Managed;

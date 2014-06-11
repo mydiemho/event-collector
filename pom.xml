@@ -213,6 +213,11 @@
             <groupId>com.proofpoint.platform</groupId>
             <artifactId>reporting-client</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.google.inject.extensions</groupId>
+            <artifactId>guice-assistedinject</artifactId>
+            <version>3.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.proofpoint.event.collector;
+package com.proofpoint.event.collector.taps;
 
 import com.google.common.collect.ImmutableMap;
 import com.proofpoint.configuration.testing.ConfigAssertions;
+import com.proofpoint.event.collector.taps.BatchProcessorConfig;
 import org.testng.annotations.Test;
 
 import javax.validation.constraints.Min;

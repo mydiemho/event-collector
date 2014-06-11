@@ -117,13 +117,6 @@ public class MainModule
 
     @Provides
     @Singleton
-    private ScheduledExecutorService createScheduledExecutor()
-    {
-        return Executors.newSingleThreadScheduledExecutor();
-    }
-
-    @Provides
-    @Singleton
     @UploaderExecutorService
     private ExecutorService createUploaderExecutor(ServerConfig config)
     {
