@@ -51,9 +51,9 @@ import static javax.ws.rs.core.Response.Status.fromStatusCode;
 import static java.lang.String.format;
 import static java.lang.Thread.sleep;
 
-class HttpEventTapFlow implements EventTapFlow
+class HttpEventTapFlow //implements EventTapFlow
 {
-    private static final Logger log = Logger.get(HttpEventTapFlow.class);
+    /*private static final Logger log = Logger.get(HttpEventTapFlow.class);
     private static final Random RANDOM = new Random();
     private static final String QOS_HEADER = "X-Proofpoint-QoS";
     private static final String QOS_HEADER_FIRST_BATCH = "firstBatch";
@@ -258,5 +258,5 @@ class HttpEventTapFlow implements EventTapFlow
     String getFlowId()
     {
         return flowId;
-    }
+    }*/
 }

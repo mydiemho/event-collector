@@ -35,33 +35,33 @@ import static com.proofpoint.json.JsonCodecBinder.jsonCodecBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
-public class EventTapModule implements Module
+public class EventTapModule //implements Module
 {
-    @Override
-    public void configure(Binder binder)
-    {
-        discoveryBinder(binder).bindSelector("eventTap");
-        bindConfig(binder).to(EventTapConfig.class);
-        jsonCodecBinder(binder).bindListJsonCodec(Event.class);
-
-        bindConfig(binder).to(BatchProcessorConfig.class);
-        binder.bind(BatchProcessorFactory.class).to(BatchProcessorFactoryImpl.class);
-        binder.bind(BatchProcessorFactoryImpl.class).in(SINGLETON);
-
-        binder.bind(EventTapFlowFactory.class).to(HttpEventTapFlowFactory.class);
-        binder.bind(HttpEventTapFlowFactory.class).in(SINGLETON);
-        binder.bind(EventTapWriter.class).in(SINGLETON);
-
-        httpClientBinder(binder).bindHttpClient("EventTap", EventTap.class);
-
-        newExporter(binder).export(EventTapWriter.class).withGeneratedName();
-        newSetBinder(binder, EventWriter.class).addBinding().to(Key.get(EventTapWriter.class)).in(SINGLETON);
-    }
-
-    @Provides
-    @EventTap
-    public ScheduledExecutorService createExecutor()
-    {
-        return newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("event-tap-%s").build());
-    }
+//    @Override
+//    public void configure(Binder binder)
+//    {
+//        discoveryBinder(binder).bindSelector("eventTap");
+//        bindConfig(binder).to(EventTapConfig.class);
+//        jsonCodecBinder(binder).bindListJsonCodec(Event.class);
+//
+//        bindConfig(binder).to(BatchProcessorConfig.class);
+//        binder.bind(BatchProcessorFactory.class).to(BatchProcessorFactoryImpl.class);
+//        binder.bind(BatchProcessorFactoryImpl.class).in(SINGLETON);
+//
+//        binder.bind(EventTapFlowFactory.class).to(HttpEventTapFlowFactory.class);
+//        binder.bind(HttpEventTapFlowFactory.class).in(SINGLETON);
+//        binder.bind(EventTapWriter.class).in(SINGLETON);
+//
+//        httpClientBinder(binder).bindHttpClient("EventTap", EventTap.class);
+//
+//        newExporter(binder).export(EventTapWriter.class).withGeneratedName();
+//        newSetBinder(binder, EventWriter.class).addBinding().to(Key.get(EventTapWriter.class)).in(SINGLETON);
+//    }
+//
+//    @Provides
+//    @EventTap
+//    public ScheduledExecutorService createExecutor()
+//    {
+//        return newSingleThreadScheduledExecutor(new ThreadFactoryBuilder().setNameFormat("event-tap-%s").build());
+//    }
 }

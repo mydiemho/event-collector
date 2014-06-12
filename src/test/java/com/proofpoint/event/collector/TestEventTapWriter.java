@@ -61,7 +61,7 @@ import static java.util.UUID.randomUUID;
 
 public class TestEventTapWriter
 {
-    private static final String typeA = "typeA";
+    /*private static final String typeA = "typeA";
     private static final String typeB = "typeB";
     private static final String typeC = "typeC";
     private static final String flowId1 = "1";
@@ -1199,5 +1199,5 @@ public class TestEventTapWriter
         {
             return format("eventType=%s flowId=%s qos=%s uris=%s", eventType, flowId, qosEnabled ? "true" : "false", taps);
         }
-    }
+    }*/
 }

@@ -24,6 +24,8 @@ import com.proofpoint.bootstrap.Bootstrap;
 import com.proofpoint.bootstrap.LifeCycleManager;
 import com.proofpoint.discovery.client.testing.TestingDiscoveryModule;
 import com.proofpoint.event.client.JsonEventModule;
+import com.proofpoint.event.collector.taps.EventTapWriter;
+import com.proofpoint.event.collector.taps.TapModule;
 import com.proofpoint.http.client.HttpClient;
 import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
 import com.proofpoint.http.client.StringResponseHandler.StringResponse;
@@ -93,7 +95,7 @@ public class TestServer
                         new JsonModule(),
                         new JaxrsModule(),
                         new JsonEventModule(),
-                        new EventTapModule(),
+                        new TapModule(),
                         new ReportingModule(),
                         new MBeanModule(),
                         new MainModule());
@@ -106,7 +108,7 @@ public class TestServer
 
         server = injector.getInstance(TestingHttpServer.class);
         eventTapWriter = injector.getInstance(EventTapWriter.class);
-        eventTapWriter.start();
+//        eventTapWriter.start();
         client = new JettyHttpClient();
 
     }
@@ -116,7 +118,7 @@ public class TestServer
             throws Exception
     {
         if (eventTapWriter != null) {
-            eventTapWriter.stop();
+//            eventTapWriter.stop();
         }
 
         if (lifeCycleManager != null) {

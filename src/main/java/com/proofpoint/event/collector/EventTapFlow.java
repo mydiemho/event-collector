@@ -22,7 +22,7 @@ import java.util.Set;
 
 public interface EventTapFlow extends BatchHandler<Event>
 {
-    Set<URI> getTaps();
-
-    void setTaps(Set<URI> taps);
+//    Set<URI> getTaps();
+//
+//    void setTaps(Set<URI> taps);
 }

@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import com.proofpoint.discovery.client.ServiceDescriptor;
 import com.proofpoint.discovery.client.ServiceSelector;
 import com.proofpoint.discovery.client.ServiceType;
-import com.proofpoint.event.collector.EventTapWriter.EventTypePolicy.FlowPolicy;
+//import com.proofpoint.event.collector.EventTapWriter.EventTypePolicy.FlowPolicy;
 import com.proofpoint.event.collector.taps.BatchProcessor;
 import com.proofpoint.event.collector.taps.BatchProcessorFactory;
 import com.proofpoint.log.Logger;
@@ -46,9 +46,9 @@ import static com.google.common.base.Objects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
-public class EventTapWriter implements EventWriter
+public class EventTapWriter //implements EventWriter
 {
-    @VisibleForTesting
+    /*@VisibleForTesting
     static final String FLOW_ID_PROPERTY_NAME = "flowId";
 
     private static final Logger log = Logger.get(EventTapWriter.class);
@@ -408,5 +408,5 @@ public class EventTapWriter implements EventWriter
                 return new EventTypePolicy(flowPoliciesBuilder.build());
             }
         }
-    }
+    }*/
 }

@@ -59,7 +59,7 @@ import static java.util.UUID.randomUUID;
 
 public class TestHttpEventTapFlow
 {
-    private static final JsonCodec<List<Event>> EVENT_LIST_JSON_CODEC = JsonCodec.listJsonCodec(Event.class);
+    /*private static final JsonCodec<List<Event>> EVENT_LIST_JSON_CODEC = JsonCodec.listJsonCodec(Event.class);
     private static final String X_PROOFPOINT_QOS = "X-Proofpoint-QoS";
     private static final Set<URI> singleTap = ImmutableSet.of(create("http://n1.event.tap/post"));
     private static final Set<URI> multipleTaps = ImmutableSet.of(create("http://n2.event.tap/post"), create("http://n3.event.tap/post"));
@@ -516,5 +516,5 @@ public class TestHttpEventTapFlow
         }
 
         assertEqualsNoOrder(request.getHeaders().get(X_PROOFPOINT_QOS).toArray(), headerBuilder.build().toArray());
-    }
+    }*/
 }

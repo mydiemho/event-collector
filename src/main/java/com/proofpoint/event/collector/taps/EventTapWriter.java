@@ -23,7 +23,7 @@ import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-class EventTapWriter implements EventWriter
+public class EventTapWriter implements EventWriter
 {
     private final ActiveFlows activeFlows;
 

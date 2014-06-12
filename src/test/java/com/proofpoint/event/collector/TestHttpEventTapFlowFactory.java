@@ -37,7 +37,7 @@ import static java.util.UUID.randomUUID;
 
 public class TestHttpEventTapFlowFactory
 {
-    private final String eventTypeA = "eventTypeA";
+    /*private final String eventTypeA = "eventTypeA";
     private final String flowIdA = "flowIdA";
     private final Set<URI> tapsA = ImmutableSet.of(URI.create("http://foo.bar"), URI.create("http://bar.foo"));
     private final String eventTypeB = "eventTypeB";
@@ -148,5 +148,5 @@ public class TestHttpEventTapFlowFactory
     {
         return new Event(eventType, randomUUID().toString(), "http://host.com",
                 DateTime.now(DateTimeZone.UTC), ImmutableMap.of("foo", "bar"));
-    }
+    }*/
 }

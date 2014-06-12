@@ -26,9 +26,9 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class HttpEventTapFlowFactory implements EventTapFlowFactory
+public class HttpEventTapFlowFactory //implements EventTapFlowFactory
 {
-    private final HttpClient httpClient;
+    /*private final HttpClient httpClient;
     private final JsonCodec<List<Event>> eventsCodec;
     private final int qosRetryCount;
     private final Duration qosRetryDelay;
@@ -55,5 +55,5 @@ public class HttpEventTapFlowFactory implements EventTapFlowFactory
     public EventTapFlow createQosEventTapFlow(String eventType, String flowId, Set<URI> taps)
     {
         return new HttpEventTapFlow(httpClient, eventsCodec, eventType, flowId, taps, qosRetryCount, qosRetryDelay, eventCollectorStats);
-    }
+    }*/
 }
