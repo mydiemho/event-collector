@@ -24,6 +24,7 @@ import com.proofpoint.bootstrap.Bootstrap;
 import com.proofpoint.bootstrap.LifeCycleManager;
 import com.proofpoint.discovery.client.testing.TestingDiscoveryModule;
 import com.proofpoint.event.client.JsonEventModule;
+import com.proofpoint.event.collector.batch.BatchModule;
 import com.proofpoint.event.collector.taps.EventTapWriter;
 import com.proofpoint.event.collector.taps.TapModule;
 import com.proofpoint.http.client.HttpClient;
@@ -98,6 +99,7 @@ public class TestServer
                         new TapModule(),
                         new ReportingModule(),
                         new MBeanModule(),
+                        new BatchModule(),
                         new MainModule());
 
         Injector injector = app

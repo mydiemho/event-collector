@@ -17,9 +17,14 @@ package com.proofpoint.event.collector;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import com.proofpoint.event.collector.batch.BatcherConfig;
+import com.proofpoint.event.collector.batch.EventBatcher;
+import com.proofpoint.units.Duration;
 
+import javax.annotation.PostConstruct;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -28,7 +33,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.proofpoint.event.collector.EventCollectorStats.EventStatus.UNSUPPORTED;
@@ -40,13 +47,29 @@ public class EventResource
     private final Set<EventWriter> writers;
     private final Set<String> acceptedEventTypes;
     private final EventCollectorStats eventCollectorStats;
+    private final ScheduledExecutorService executorService;
+    private final Map<String, EventBatcher> batchers;
+    private final int maxBatchSize;
+    private final Duration maxProcessingDelay;
 
     @Inject
-    public EventResource(Set<EventWriter> writers, ServerConfig config, EventCollectorStats eventCollectorStats)
+    public EventResource(Set<EventWriter> writers, ServerConfig config, BatcherConfig batcherConfig, EventCollectorStats eventCollectorStats, ScheduledExecutorService executorService)
     {
         this.eventCollectorStats = eventCollectorStats;
+        this.executorService = executorService;
         this.writers = checkNotNull(writers, "writers are null");
         this.acceptedEventTypes = ImmutableSet.copyOf(checkNotNull(config, "config is null").getAcceptedEventTypes());
+        this.maxBatchSize = checkNotNull(batcherConfig, "batcherConfig is null").getMaxBatchSize();
+        this.maxProcessingDelay = batcherConfig.getMaxProcessingDelay();
+        this.batchers = Maps.newHashMap();
+    }
+
+    @PostConstruct
+    public void start()
+    {
+        for(String eventType : acceptedEventTypes) {
+            batchers.put(eventType, new EventBatcher(eventType, maxBatchSize, maxProcessingDelay, writers, executorService));
+        }
     }
 
     @POST
@@ -56,17 +79,17 @@ public class EventResource
     {
         Set<String> badEvents = Sets.newHashSet();
         for (Event event : events) {
-            if (acceptedEventType(event.getType())) {
-                for (EventWriter writer : writers) {
-                    writer.write(event);
-                }
+            String eventType = event.getType();
+            if (acceptedEventType(eventType)) {
 
-                eventCollectorStats.incomingEvents(event.getType(), VALID).add(1);
+                batchers.get(eventType).add(event);
+
+                eventCollectorStats.incomingEvents(eventType, VALID).add(1);
             }
             else {
                 badEvents.add(event.getType());
 
-                eventCollectorStats.incomingEvents(event.getType(), UNSUPPORTED).add(1);
+                eventCollectorStats.incomingEvents(eventType, UNSUPPORTED).add(1);
             }
         }
 

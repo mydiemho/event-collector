@@ -25,6 +25,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.proofpoint.event.collector.EventCounters.CounterState;
+import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.log.Logger;
 import com.proofpoint.units.DataSize;
 import com.proofpoint.units.Duration;
@@ -121,6 +122,13 @@ public class SpoolingEventWriter
 
         outputFiles.getUnchecked(partition).write(event);
         counters.recordReceived(event.getType(), 1);
+    }
+
+    @Override
+    public void write(EventBatch eventBatch)
+            throws IOException
+    {
+        // do nothing
     }
 
     public Map<String, CounterState> getCounts()

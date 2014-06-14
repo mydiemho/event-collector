@@ -15,10 +15,15 @@
  */
 package com.proofpoint.event.collector;
 
+import com.proofpoint.event.collector.batch.EventBatch;
+
 import java.io.IOException;
 
 public interface EventWriter
 {
     void write(Event event)
+            throws IOException;
+
+    void write(EventBatch eventBatch)
             throws IOException;
 }

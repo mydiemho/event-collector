@@ -15,8 +15,6 @@
  */
 package com.proofpoint.event.collector.taps;
 
-import java.util.List;
-
 public interface BatchProcessor<T>
 {
     void start();
@@ -27,7 +25,7 @@ public interface BatchProcessor<T>
 
     interface BatchHandler<T>
     {
-        void processBatch(List<T> entries);
+        void processBatch(T entry);
 
         void notifyEntriesDropped(int count);
     }

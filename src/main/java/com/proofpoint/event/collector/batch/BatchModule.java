@@ -13,29 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.proofpoint.event.collector.taps;
+package com.proofpoint.event.collector.batch;
 
-import com.proofpoint.configuration.Config;
-import com.proofpoint.configuration.ConfigDescription;
+import com.google.inject.Binder;
+import com.google.inject.Module;
 
-import javax.validation.constraints.Min;
+import static com.proofpoint.configuration.ConfigurationModule.bindConfig;
 
-public class BatchProcessorConfig
+public class BatchModule implements Module
 {
-    private int queueSize = 40000;
-
-    @Min(1)
-    public int getQueueSize()
+    @Override
+    public void configure(Binder binder)
     {
-        return queueSize;
+        bindConfig(binder).to(BatcherConfig.class);
     }
-
-    @Config("collector.event-tap.queue-size")
-    @ConfigDescription("The maximum number of events queued for a given event type's queue.")
-    public BatchProcessorConfig setQueueSize(int queueSize)
-    {
-        this.queueSize = queueSize;
-        return this;
-    }
-
 }

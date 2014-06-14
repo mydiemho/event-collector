@@ -17,6 +17,7 @@ package com.proofpoint.event.collector.taps;
 
 import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.EventWriter;
+import com.proofpoint.event.collector.batch.EventBatch;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -39,6 +40,14 @@ public class EventTapWriter implements EventWriter
     {
         for (Flow flow : activeFlows.getForType(event.getType())) {
             flow.enqueue(event);
+        }
+    }
+
+    @Override
+    public void write(EventBatch eventBatch)
+    {
+        for (Flow flow : activeFlows.getForType(eventBatch.getType())) {
+            flow.enqueue(eventBatch);
         }
     }
 }

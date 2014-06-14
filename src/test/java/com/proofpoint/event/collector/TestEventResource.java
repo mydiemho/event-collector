@@ -18,7 +18,10 @@ package com.proofpoint.event.collector;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.proofpoint.event.collector.batch.BatcherConfig;
+import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.reporting.testing.TestingReportCollectionFactory;
+import com.proofpoint.testing.SerialScheduledExecutorService;
 import org.joda.time.DateTime;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -28,6 +31,7 @@ import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static com.proofpoint.event.collector.EventCollectorStats.EventStatus.UNSUPPORTED;
 import static com.proofpoint.event.collector.EventCollectorStats.EventStatus.VALID;
@@ -41,9 +45,15 @@ import static org.testng.Assert.assertTrue;
 
 public class TestEventResource
 {
+    private static final String ARBITRARY_EVENT_TYPE = "fooType";
+    private static final String ARBITRARY_EVENT_TYPE_A = ARBITRARY_EVENT_TYPE;
+    private static final String ARBITRARY_EVENT_TYPE_B = "barType";
+    private static final ImmutableMap<String,String> ARBITRARY_DATA = ImmutableMap.of("foo", "bar", "hello", "world");
+
     private InMemoryEventWriter writer;
     private EventCollectorStats eventCollectorStats;
     private TestingReportCollectionFactory testingReportCollectionFactory;
+    private ScheduledExecutorService executorService;
 
     @BeforeMethod
     public void setup()
@@ -51,64 +61,69 @@ public class TestEventResource
         writer = new InMemoryEventWriter();
         testingReportCollectionFactory = new TestingReportCollectionFactory();
         eventCollectorStats = testingReportCollectionFactory.createReportCollection(EventCollectorStats.class);
+        executorService = new SerialScheduledExecutorService();
     }
 
     @Test
     public void testPost()
             throws IOException
     {
-        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig().setAcceptedEventTypes("Test"), eventCollectorStats);
+        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig().setAcceptedEventTypes(ARBITRARY_EVENT_TYPE), new BatcherConfig().setMaxBatchSize(1), eventCollectorStats, executorService);
+        resource.start();
 
-        ImmutableMap<String, String> data = ImmutableMap.of("foo", "bar", "hello", "world");
-        Event event = new Event("Test", UUID.randomUUID().toString(), "test.local", new DateTime(), data);
+        Event event = new Event(ARBITRARY_EVENT_TYPE, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
 
         List<Event> events = ImmutableList.of(event);
+        EventBatch eventBatch = new EventBatch(ARBITRARY_EVENT_TYPE, events);
         Response response = resource.post(events);
 
         assertEquals(response.getStatus(), Status.ACCEPTED.getStatusCode());
         assertNull(response.getEntity());
         assertNull(response.getMetadata().get("Content-Type")); // content type is set by jersey based on @Produces
 
-        assertEquals(writer.getEvents(), events);
+        assertEquals(writer.getEventBatch(ARBITRARY_EVENT_TYPE), eventBatch);
 
         EventCollectorStats argumentVerifier = testingReportCollectionFactory.getArgumentVerifier(EventCollectorStats.class);
-        verify(argumentVerifier).incomingEvents("Test", VALID);
+        verify(argumentVerifier).incomingEvents(ARBITRARY_EVENT_TYPE, VALID);
         verifyNoMoreInteractions(argumentVerifier);
 
         EventCollectorStats reportCollection = testingReportCollectionFactory.getReportCollection(EventCollectorStats.class);
-        verify(reportCollection.incomingEvents("Test", VALID)).add(1);
-        verifyNoMoreInteractions(reportCollection.incomingEvents("Test", VALID));
+        verify(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE, VALID)).add(1);
+        verifyNoMoreInteractions(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE, VALID));
     }
 
     @Test
     public void testPostUnsupportedType()
             throws IOException
     {
-        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig().setAcceptedEventTypes("Test"), eventCollectorStats);
+        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig().setAcceptedEventTypes(ARBITRARY_EVENT_TYPE_A), new BatcherConfig().setMaxBatchSize(2), eventCollectorStats, executorService);
+        resource.start();
 
-        ImmutableMap<String, String> data = ImmutableMap.of("foo", "bar", "hello", "world");
-        Event event1 = new Event("Test", UUID.randomUUID().toString(), "test.local", new DateTime(), data);
-        Event event2 = new Event("Test", UUID.randomUUID().toString(), "test.local", new DateTime(), data);
-        Event badEvent = new Event("TestBad", UUID.randomUUID().toString(), "test.local", new DateTime(), data);
+        Event event1 = new Event(ARBITRARY_EVENT_TYPE_A, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
+        Event event2 = new Event(ARBITRARY_EVENT_TYPE_A, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
+        Event badEvent = new Event(ARBITRARY_EVENT_TYPE_B, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
 
         List<Event> events = ImmutableList.of(event1, event2, badEvent);
         Response response = resource.post(events);
 
+        assertEquals(writer.getEventBatch(ARBITRARY_EVENT_TYPE_A), new EventBatch(ARBITRARY_EVENT_TYPE_A, ImmutableList.of(event1, event2)));
+        assertNull(writer.getEventBatch(ARBITRARY_EVENT_TYPE_B));
+
         assertEquals(response.getStatus(), Status.BAD_REQUEST.getStatusCode());
         assertNotNull(response.getEntity());
         assertTrue(response.getEntity().toString().startsWith("Unsupported event type(s): "));
-        assertTrue(response.getEntity().toString().contains("TestBad"));
+        assertTrue(response.getEntity().toString().contains(ARBITRARY_EVENT_TYPE_B));
 
         EventCollectorStats argumentVerifier = testingReportCollectionFactory.getArgumentVerifier(EventCollectorStats.class);
-        verify(argumentVerifier, times(2)).incomingEvents("Test", VALID);
-        verify(argumentVerifier).incomingEvents("TestBad", UNSUPPORTED);
+        verify(argumentVerifier, times(2)).incomingEvents(ARBITRARY_EVENT_TYPE_A, VALID);
+        verify(argumentVerifier).incomingEvents(ARBITRARY_EVENT_TYPE_B, UNSUPPORTED);
         verifyNoMoreInteractions(argumentVerifier);
 
         EventCollectorStats reportCollection = testingReportCollectionFactory.getReportCollection(EventCollectorStats.class);
-        verify(reportCollection.incomingEvents("Test", VALID), times(2)).add(1);
-        verify(reportCollection.incomingEvents("TestBad", UNSUPPORTED)).add(1);
-        verifyNoMoreInteractions(reportCollection.incomingEvents("Test", VALID));
-        verifyNoMoreInteractions(reportCollection.incomingEvents("TestBad", UNSUPPORTED));
+        verify(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE_A, VALID), times(2)).add(1);
+        verify(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE_B, UNSUPPORTED)).add(1);
+        verifyNoMoreInteractions(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE, VALID));
+        verifyNoMoreInteractions(reportCollection.incomingEvents(ARBITRARY_EVENT_TYPE_B, UNSUPPORTED));
     }
 
     @Test
@@ -118,11 +133,11 @@ public class TestEventResource
         String eventTypeA = UUID.randomUUID().toString();
         String eventTypeB = UUID.randomUUID().toString();
 
-        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig(), eventCollectorStats);
+        EventResource resource = new EventResource(ImmutableSet.<EventWriter>of(writer), new ServerConfig().setAcceptedEventTypes(ImmutableList.of(eventTypeA, eventTypeB)), new BatcherConfig().setMaxBatchSize(1), eventCollectorStats, executorService);
+        resource.start();
 
-        ImmutableMap<String, String> data = ImmutableMap.of("foo", "bar", "hello", "world");
-        Event eventWithTypeA = new Event(eventTypeA, UUID.randomUUID().toString(), "test.local", new DateTime(), data);
-        Event eventWithTypeB = new Event(eventTypeB, UUID.randomUUID().toString(), "test.local", new DateTime(), data);
+        Event eventWithTypeA = new Event(eventTypeA, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
+        Event eventWithTypeB = new Event(eventTypeB, UUID.randomUUID().toString(), "test.local", new DateTime(), ARBITRARY_DATA);
 
         List<Event> events = ImmutableList.of(eventWithTypeA, eventWithTypeB);
         Response response = resource.post(events);
@@ -131,7 +146,10 @@ public class TestEventResource
         assertNull(response.getEntity());
         assertNull(response.getMetadata().get("Content-Type")); // content type is set by jersey based on @Produces
 
-        assertEquals(writer.getEvents(), events);
+        EventBatch eventBatchOfTypeA = new EventBatch(eventTypeA, ImmutableList.of(eventWithTypeA));
+        EventBatch eventBatchOfTypeB = new EventBatch(eventTypeB, ImmutableList.of(eventWithTypeB));
+        assertEquals(writer.getEventBatch(eventTypeA), eventBatchOfTypeA);
+        assertEquals(writer.getEventBatch(eventTypeB), eventBatchOfTypeB);
 
         EventCollectorStats argumentVerifier = testingReportCollectionFactory.getArgumentVerifier(EventCollectorStats.class);
         verify(argumentVerifier).incomingEvents(eventTypeA, VALID);

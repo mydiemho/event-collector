@@ -15,17 +15,15 @@
  */
 package com.proofpoint.event.collector.taps;
 
+import com.google.common.collect.ImmutableList;
 import com.proofpoint.event.collector.Event;
-import com.proofpoint.event.collector.taps.AsyncBatchProcessor;
-import com.proofpoint.event.collector.taps.BatchProcessor;
+import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
-import com.proofpoint.event.collector.taps.BatchProcessorConfig;
 import org.joda.time.DateTime;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -39,7 +37,10 @@ import static org.testng.Assert.fail;
 
 public class TestAsyncBatchProcessor
 {
-    private BatchHandler<Event> handler;
+    private static final EventBatch ARBITRARY_BATCH = new EventBatch("foo", ImmutableList.of(event("foo")));
+    private static final EventBatch ARBITRARY_BATCH_A = ARBITRARY_BATCH;
+    private static final EventBatch ARBITRARY_BATCH_B = new EventBatch("bar", ImmutableList.of(event("bar")));
+    private BatchHandler<EventBatch> handler;
 
     @BeforeMethod
     public void setup()
@@ -69,14 +70,14 @@ public class TestAsyncBatchProcessor
     public void testEnqueue()
             throws Exception
     {
-        BatchProcessor<Event> processor = new AsyncBatchProcessor<>(
-                "foo", handler, new BatchProcessorConfig().setMaxBatchSize(100).setQueueSize(100)
+        BatchProcessor<EventBatch> processor = new AsyncBatchProcessor<>(
+                "foo", handler, new BatchProcessorConfig().setQueueSize(100)
         );
         processor.start();
 
-        processor.put(event("foo"));
-        processor.put(event("foo"));
-        processor.put(event("foo"));
+        processor.put(ARBITRARY_BATCH);
+        processor.put(ARBITRARY_BATCH);
+        processor.put(ARBITRARY_BATCH);
     }
 
     @Test
@@ -84,8 +85,8 @@ public class TestAsyncBatchProcessor
             throws Exception
     {
         BlockingBatchHandler blockingHandler = blockingHandler();
-        BatchProcessor<Event> processor = new AsyncBatchProcessor<>(
-                "foo", blockingHandler, new BatchProcessorConfig().setMaxBatchSize(100).setQueueSize(1)
+        BatchProcessor<EventBatch> processor = new AsyncBatchProcessor<>(
+                "foo", blockingHandler, new BatchProcessorConfig().setQueueSize(1)
         );
 
         processor.start();
@@ -93,7 +94,7 @@ public class TestAsyncBatchProcessor
         blockingHandler.lock();
         try {
             // This will be processed, and its processing will block the handler
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH);
             assertEquals(blockingHandler.getDroppedEntries(), 0);
 
             // Wait for the handler to pick up the item from the queue
@@ -101,11 +102,11 @@ public class TestAsyncBatchProcessor
 
             // This will remain in the queue because the processing
             // thread has not yet been resumed
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH);
             assertEquals(blockingHandler.getDroppedEntries(), 0);
 
             // The queue is now full, this message will be dropped.
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH);
             assertEquals(blockingHandler.getDroppedEntries(), 1);
         }
         finally {
@@ -119,15 +120,15 @@ public class TestAsyncBatchProcessor
             throws InterruptedException
     {
         BlockingBatchHandler blockingHandler = blockingHandlerThatThrowsException(new RuntimeException());
-        BatchProcessor<Event> processor = new AsyncBatchProcessor<>(
-                "foo", blockingHandler, new BatchProcessorConfig().setMaxBatchSize(100).setQueueSize(100)
+        BatchProcessor<EventBatch> processor = new AsyncBatchProcessor<>(
+                "foo", blockingHandler, new BatchProcessorConfig().setQueueSize(100)
         );
 
         processor.start();
 
         blockingHandler.lock();
         try {
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH_A);
 
             assertTrue(blockingHandler.waitForProcessor(10));
             assertEquals(blockingHandler.getCallsToProcessBatch(), 1);
@@ -141,7 +142,7 @@ public class TestAsyncBatchProcessor
         // This should not affect the processor.
         blockingHandler.lock();
         try {
-            processor.put(event("bar"));
+            processor.put(ARBITRARY_BATCH_B);
             assertTrue(blockingHandler.waitForProcessor(10));
             assertEquals(blockingHandler.getCallsToProcessBatch(), 2);
         }
@@ -156,15 +157,15 @@ public class TestAsyncBatchProcessor
             throws InterruptedException
     {
         BlockingBatchHandler blockingHandler = blockingHandler();
-        BatchProcessor<Event> processor = new AsyncBatchProcessor<>(
-                "foo", blockingHandler, new BatchProcessorConfig().setMaxBatchSize(100).setQueueSize(100)
+        BatchProcessor<EventBatch> processor = new AsyncBatchProcessor<>(
+                "foo", blockingHandler, new BatchProcessorConfig().setQueueSize(100)
         );
 
         processor.start();
 
         blockingHandler.lock();
         try {
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH_A);
 
             assertTrue(blockingHandler.waitForProcessor(10));
 
@@ -176,7 +177,7 @@ public class TestAsyncBatchProcessor
         }
 
         try {
-            processor.put(event("bar"));
+            processor.put(ARBITRARY_BATCH_B);
             fail();
         }
         catch (IllegalStateException ex) {
@@ -189,14 +190,14 @@ public class TestAsyncBatchProcessor
             throws InterruptedException
     {
         BlockingBatchHandler blockingHandler = blockingHandlerThatThrowsException(new NullPointerException());
-        BatchProcessor<Event> processor = new AsyncBatchProcessor<>(
-                "foo", blockingHandler, new BatchProcessorConfig().setMaxBatchSize(100).setQueueSize(100)
+        BatchProcessor<EventBatch> processor = new AsyncBatchProcessor<>(
+                "foo", blockingHandler, new BatchProcessorConfig().setQueueSize(100)
         );
         processor.start();
 
         blockingHandler.lock();
         try {
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH_A);
             assertTrue(blockingHandler.waitForProcessor(10));
             blockingHandler.resumeProcessor();
         }
@@ -207,7 +208,7 @@ public class TestAsyncBatchProcessor
 
         blockingHandler.lock();
         try {
-            processor.put(event("foo"));
+            processor.put(ARBITRARY_BATCH_B);
             assertTrue(blockingHandler.waitForProcessor(10));
             blockingHandler.resumeProcessor();
         }
@@ -245,7 +246,7 @@ public class TestAsyncBatchProcessor
         });
     }
 
-    private static class BlockingBatchHandler implements BatchHandler<Event>
+    private static class BlockingBatchHandler implements BatchHandler<EventBatch>
     {
         private final Lock lock = new ReentrantLock();
         private final Condition externalCondition = lock.newCondition();
@@ -260,7 +261,7 @@ public class TestAsyncBatchProcessor
         }
 
         @Override
-        public void processBatch(List<Event> entries)
+        public void processBatch(EventBatch entry)
         {
             // Wait for the right time to run
             lock.lock();

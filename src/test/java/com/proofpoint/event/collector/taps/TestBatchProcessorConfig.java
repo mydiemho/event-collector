@@ -17,7 +17,6 @@ package com.proofpoint.event.collector.taps;
 
 import com.google.common.collect.ImmutableMap;
 import com.proofpoint.configuration.testing.ConfigAssertions;
-import com.proofpoint.event.collector.taps.BatchProcessorConfig;
 import org.testng.annotations.Test;
 
 import javax.validation.constraints.Min;
@@ -33,7 +32,6 @@ public class TestBatchProcessorConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(BatchProcessorConfig.class)
-                .setMaxBatchSize(1000)
                 .setQueueSize(40000));
     }
 
@@ -41,21 +39,13 @@ public class TestBatchProcessorConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
-                .put("collector.event-tap.batch-size-max", "17")
                 .put("collector.event-tap.queue-size", "977")
                 .build();
 
         BatchProcessorConfig expected = new BatchProcessorConfig()
-                .setMaxBatchSize(17)
                 .setQueueSize(977);
 
         ConfigAssertions.assertFullMapping(properties, expected);
-    }
-
-    @Test
-    void testMaxBatchSizeValidation()
-    {
-        assertFailsValidation(new BatchProcessorConfig().setMaxBatchSize(0), "maxBatchSize", "must be greater than or equal to 1", Min.class);
     }
 
     @Test

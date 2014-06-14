@@ -15,11 +15,11 @@
  */
 package com.proofpoint.event.collector.taps;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.inject.assistedinject.Assisted;
 import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 import com.proofpoint.http.client.HttpClient.HttpResponseFuture;
 import com.proofpoint.http.client.Request;
@@ -51,7 +51,7 @@ class HttpFlow implements Flow
     private final String flowId;
     private final EventCollectorStats eventCollectorStats;
     private final BalancingHttpClient httpClient;
-    private final BatchProcessor<Event> batchProcessor;
+    private final BatchProcessor<EventBatch> batchProcessor;
     private final int maxOutstandingEvents = 10_000;
     private int outstandingEventsCount;
     private Object outstandingEventsGuard = new Object();
@@ -63,12 +63,13 @@ class HttpFlow implements Flow
         this.eventType = checkNotNull(eventType, "eventType is null");
         this.flowId = checkNotNull(flowId, "flowId is null");
         this.httpClient = checkNotNull(httpClient, "httpClient is null");
-        this.batchProcessor = checkNotNull(batchProcessorFactory, "batchProcessorFactory is null").createBatchProcessor(createBatchProcessorName(eventType, flowId), new BatchHandler<Event>()
+
+        this.batchProcessor = checkNotNull(batchProcessorFactory, "batchProcessorFactory is null").createBatchProcessor(createBatchProcessorName(eventType, flowId), new BatchHandler<EventBatch>()
         {
             @Override
-            public void processBatch(List<Event> entries)
+            public void processBatch(EventBatch eventBatch)
             {
-                HttpFlow.this.processBatch(entries);
+                HttpFlow.this.processBatch(eventBatch);
             }
 
             @Override
@@ -83,13 +84,17 @@ class HttpFlow implements Flow
     @Override
     public void enqueue(Event event)
     {
-        this.batchProcessor.put(event);
     }
 
-    private void processBatch(List<Event> entries)
+    @Override
+    public void enqueue(EventBatch eventBatch)
     {
-        entries = ImmutableList.copyOf(entries);
-        final int batchSize = entries.size();
+        this.batchProcessor.put(eventBatch);
+    }
+
+    private void processBatch(EventBatch eventBatch)
+    {
+        final int batchSize = eventBatch.size();
         synchronized (outstandingEventsGuard) {
             while (outstandingEventsCount > maxOutstandingEvents) {
                 try {
@@ -106,7 +111,7 @@ class HttpFlow implements Flow
 
         Request request = Request.builder()
                 .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON)
-                .setBodyGenerator(jsonBodyGenerator(EVENT_LIST_JSON_CODEC, entries))
+                .setBodyGenerator(jsonBodyGenerator(EVENT_LIST_JSON_CODEC, eventBatch.getEvents()))
                 .build();
 
         HttpResponseFuture<StatusResponse> responseFuture = httpClient.executeAsync(request, createStatusResponseHandler());

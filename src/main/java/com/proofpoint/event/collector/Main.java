@@ -20,6 +20,7 @@ import com.proofpoint.bootstrap.Bootstrap;
 import com.proofpoint.discovery.client.DiscoveryModule;
 import com.proofpoint.discovery.client.announce.Announcer;
 import com.proofpoint.event.client.JsonEventModule;
+import com.proofpoint.event.collector.batch.BatchModule;
 import com.proofpoint.event.collector.taps.TapModule;
 import com.proofpoint.http.server.HttpServerModule;
 import com.proofpoint.jaxrs.JaxrsModule;
@@ -54,6 +55,7 @@ public class Main
                             new TapModule(),
                             new ReportingModule(),
                             new ReportingClientModule(),
+                            new BatchModule(),
                             new MainModule());
 
             Injector injector = app.initialize();

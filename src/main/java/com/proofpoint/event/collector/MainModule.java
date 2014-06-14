@@ -181,4 +181,12 @@ public class MainModule
     private Ticker providesTicker() {
         return Ticker.systemTicker();
     }
+
+
+    @Provides
+    @Singleton
+    private java.util.concurrent.ScheduledExecutorService provideScheduledExecutorService()
+    {
+        return newSingleThreadScheduledExecutor();
+    }
 }

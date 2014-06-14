@@ -17,13 +17,17 @@ package com.proofpoint.event.collector;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.proofpoint.event.collector.batch.EventBatch;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class InMemoryEventWriter implements EventWriter
 {
     List<Event> events = Lists.newArrayList();
+    Map<String, EventBatch> eventBatches = Maps.newHashMap();
 
     @Override
     public void write(Event event)
@@ -32,8 +36,20 @@ public class InMemoryEventWriter implements EventWriter
         this.events.add(event);
     }
 
+    @Override
+    public void write(EventBatch eventBatch)
+            throws IOException
+    {
+        this.eventBatches.put(eventBatch.getType(), eventBatch);
+    }
+
     public List<Event> getEvents()
     {
         return ImmutableList.copyOf(events);
+    }
+
+    public EventBatch getEventBatch(String eventType)
+    {
+        return eventBatches.get(eventType);
     }
 }
