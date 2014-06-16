@@ -23,6 +23,7 @@ import javax.validation.constraints.Min;
 public class BatchProcessorConfig
 {
     private int queueSize = 40000;
+    private int maxOutstandingEvents = 100;
 
     @Min(1)
     public int getQueueSize()
@@ -38,4 +39,16 @@ public class BatchProcessorConfig
         return this;
     }
 
+    @Min(1)
+    public int getMaxOutstandingEvents()
+    {
+        return maxOutstandingEvents;
+    }
+
+    @Config("collector.event-tap.max-outstanding-events")
+    @ConfigDescription("The maximum number of evnts being processed at any given point in time.")
+    public void setMaxOutstandingEvents(int maxOutstandingEvents)
+    {
+        this.maxOutstandingEvents = maxOutstandingEvents;
+    }
 }

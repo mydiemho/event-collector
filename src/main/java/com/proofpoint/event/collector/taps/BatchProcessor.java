@@ -15,18 +15,17 @@
  */
 package com.proofpoint.event.collector.taps;
 
-public interface BatchProcessor<T>
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+import com.proofpoint.event.collector.batch.EventBatch;
+import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
+
+public interface BatchProcessor
 {
-    void start();
+    void put(EventBatch eventBatch);
 
-    void stop();
-
-    void put(T entry);
-
-    interface BatchHandler<T>
+    interface BatchHandler
     {
-        void processBatch(T entry);
-
-        void notifyEntriesDropped(int count);
+        SettableFuture<StatusResponse> processBatch(EventBatch eventBatch);
     }
 }

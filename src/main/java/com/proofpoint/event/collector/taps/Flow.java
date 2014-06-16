@@ -15,12 +15,9 @@
  */
 package com.proofpoint.event.collector.taps;
 
-import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.batch.EventBatch;
 
 interface Flow
 {
-    void enqueue(Event event);
-
     void enqueue(EventBatch eventBatch);
 }

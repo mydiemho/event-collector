@@ -15,6 +15,7 @@
  */
 package com.proofpoint.event.collector.taps;
 
+import com.proofpoint.event.collector.EventCollectorStats;
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 
 import javax.inject.Inject;
@@ -32,8 +33,8 @@ public class BatchProcessorFactoryImpl implements BatchProcessorFactory
     }
 
     @Override
-    public <T> BatchProcessor<T> createBatchProcessor(String name, BatchHandler<T> batchHandler)
+    public BatchProcessor createBatchProcessor(String eventType, String flowId, EventCollectorStats eventCollectorStats, BatchHandler batchHandler)
     {
-        return new AsyncBatchProcessor<>(name, batchHandler, config);
+        return new AsyncBatchProcessor(eventType, flowId, config, eventCollectorStats, batchHandler);
     }
 }

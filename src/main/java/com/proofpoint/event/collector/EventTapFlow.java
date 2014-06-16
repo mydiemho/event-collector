@@ -17,10 +17,7 @@ package com.proofpoint.event.collector;
 
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 
-import java.net.URI;
-import java.util.Set;
-
-public interface EventTapFlow extends BatchHandler<Event>
+public interface EventTapFlow extends BatchHandler
 {
 //    Set<URI> getTaps();
 //
