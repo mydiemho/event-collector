@@ -18,9 +18,9 @@ package com.proofpoint.event.collector.taps;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.inject.assistedinject.Assisted;
-import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 import com.proofpoint.http.client.HttpClient.HttpResponseFuture;
 import com.proofpoint.http.client.Request;
 import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
@@ -63,7 +63,7 @@ class HttpFlow implements Flow
         this.eventType = checkNotNull(eventType, "eventType is null");
         this.flowId = checkNotNull(flowId, "flowId is null");
         this.httpClient = checkNotNull(httpClient, "httpClient is null");
-        this.batchProcessor = batchProcessorFactory.createBatchProcessor(createBatchProcessorName(eventType, flowId), new BatchHandler<Event>()
+        this.batchProcessor = checkNotNull(batchProcessorFactory, "batchProcessorFactory is null").createBatchProcessor(createBatchProcessorName(eventType, flowId), new BatchHandler<Event>()
         {
             @Override
             public void processBatch(List<Event> entries)

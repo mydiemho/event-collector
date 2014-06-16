@@ -15,6 +15,7 @@
  */
 package com.proofpoint.event.collector.taps;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
@@ -38,6 +39,7 @@ import org.weakref.jmx.ObjectNameBuilder;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -137,7 +139,8 @@ class DiscoveryBasedActiveFlows implements ActiveFlows
         return new FlowInfo(flowFactory.createHttpFlow(key.getEventType(), key.getFlowId(), httpClient), balancer);
     }
 
-    private Multimap<FlowKey, URI> extractActiveFlows(Iterable<ServiceDescriptor> serviceDescriptors)
+    @VisibleForTesting
+    Multimap<FlowKey, URI> extractActiveFlows(Iterable<ServiceDescriptor> serviceDescriptors)
     {
         ImmutableMultimap.Builder<FlowKey, URI> builder = ImmutableMultimap.builder();
         for (ServiceDescriptor serviceDescriptor : serviceDescriptors) {
