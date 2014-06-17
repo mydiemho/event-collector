@@ -20,6 +20,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.assistedinject.Assisted;
 import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.EventCollectorStats.Status;
 import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
 import com.proofpoint.http.client.HttpClient.HttpResponseFuture;
@@ -36,9 +37,13 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.addCallback;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.DELIVERED;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.LOST;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.REJECTED;
 import static com.proofpoint.http.client.JsonBodyGenerator.jsonBodyGenerator;
 import static com.proofpoint.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static com.proofpoint.json.JsonCodec.listJsonCodec;
+import static javax.ws.rs.core.Response.Status.fromStatusCode;
 
 class HttpFlow implements Flow
 {
@@ -60,7 +65,7 @@ class HttpFlow implements Flow
                 createBatchProcessor(eventType, flowId, eventCollectorStats, new BatchHandler()
                 {
                     @Override
-                    public SettableFuture<StatusResponse> processBatch(EventBatch eventBatch)
+                    public SettableFuture<Status> processBatch(EventBatch eventBatch)
                     {
                         return HttpFlow.this.processBatch(eventBatch);
                     }
@@ -73,7 +78,13 @@ class HttpFlow implements Flow
         this.batchProcessor.put(eventBatch);
     }
 
-    private SettableFuture<StatusResponse> processBatch(EventBatch eventBatch)
+    @Override
+    public void enqueue(Event event)
+    {
+        // do nothing
+    }
+
+    private SettableFuture<Status> processBatch(EventBatch eventBatch)
     {
         Request request = Request.builder()
                 .setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON)
@@ -81,20 +92,27 @@ class HttpFlow implements Flow
                 .build();
 
         HttpResponseFuture<StatusResponse> responseFuture = httpClient.executeAsync(request, createStatusResponseHandler());
-        final SettableFuture<StatusResponse> settableFuture = SettableFuture.create();
+        final SettableFuture<Status> settableFuture = SettableFuture.create();
 
         addCallback(responseFuture, new FutureCallback<StatusResponse>()
         {
             @Override
             public void onSuccess(@Nullable StatusResponse result)
             {
-                settableFuture.set(result);
+                switch (fromStatusCode(result.getStatusCode()).getFamily()) {
+                    case CLIENT_ERROR:
+                        settableFuture.set(REJECTED);
+                    case SERVER_ERROR:
+                        settableFuture.set(LOST);
+                    default:
+                        settableFuture.set(DELIVERED);
+                }
             }
 
             @Override
             public void onFailure(Throwable t)
             {
-                settableFuture.setException(t);
+                // do nothing
             }
         });
 

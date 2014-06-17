@@ -15,15 +15,28 @@
  */
 package com.proofpoint.event.collector.taps;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.proofpoint.event.collector.Event;
 import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.http.client.balancing.BalancingHttpClient;
+import org.joda.time.DateTime;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
 import static org.mockito.Mockito.mock;
+import static java.util.UUID.randomUUID;
 
 public class TestHttpFlow
 {
+    private static final String ARBITRARY_EVENT_TYPE = "foo";
+    private static final String ARBITRARY_FLOW_ID = "flowTest";
+
+    private static final EventBatch ARBITRARY_BATCH = new EventBatch(ARBITRARY_EVENT_TYPE, createEvents(ARBITRARY_EVENT_TYPE, 3));
+
     private BalancingHttpClient httpClient;
     private BatchProcessorFactory batchProcessorFactory;
     private EventCollectorStats eventCollectorStats;
@@ -64,5 +77,26 @@ public class TestHttpFlow
     public void testConstructorWithNullEventCollectorStats()
     {
         new HttpFlow("eventType", "flowId", httpClient, batchProcessorFactory, null);
+    }
+
+    @Test
+    public void testEnqueue()
+    {
+        HttpFlow httpFlow = new HttpFlow(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, httpClient, batchProcessorFactory, eventCollectorStats);
+        httpFlow.enqueue(ARBITRARY_BATCH);
+    }
+
+    private static Event createEvent(String type)
+    {
+        return new Event(type, randomUUID().toString(), "host", DateTime.now(), ImmutableMap.<String, Object>of());
+    }
+
+    private static List<Event> createEvents(String type, int count)
+    {
+        ImmutableList.Builder<Event> eventBuilder = ImmutableList.builder();
+        for (int i = 0; i < count; ++i) {
+            eventBuilder.add(createEvent(type));
+        }
+        return eventBuilder.build();
     }
 }

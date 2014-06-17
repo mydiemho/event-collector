@@ -15,10 +15,9 @@
  */
 package com.proofpoint.event.collector.taps;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.proofpoint.event.collector.EventCollectorStats.Status;
 import com.proofpoint.event.collector.batch.EventBatch;
-import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
 
 public interface BatchProcessor
 {
@@ -26,6 +25,6 @@ public interface BatchProcessor
 
     interface BatchHandler
     {
-        SettableFuture<StatusResponse> processBatch(EventBatch eventBatch);
+        SettableFuture<Status> processBatch(EventBatch eventBatch);
     }
 }

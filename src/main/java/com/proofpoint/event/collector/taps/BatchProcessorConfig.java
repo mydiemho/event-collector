@@ -47,8 +47,9 @@ public class BatchProcessorConfig
 
     @Config("collector.event-tap.max-outstanding-events")
     @ConfigDescription("The maximum number of evnts being processed at any given point in time.")
-    public void setMaxOutstandingEvents(int maxOutstandingEvents)
+    public BatchProcessorConfig setMaxOutstandingEvents(int maxOutstandingEvents)
     {
         this.maxOutstandingEvents = maxOutstandingEvents;
+        return this;
     }
 }

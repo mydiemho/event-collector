@@ -18,29 +18,21 @@ package com.proofpoint.event.collector.taps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.EventCollectorStats.Status;
 import com.proofpoint.event.collector.batch.EventBatch;
-import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
 
 import javax.annotation.Nullable;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.addCallback;
-import static com.proofpoint.event.collector.EventCollectorStats.Status.DELIVERED;
 import static com.proofpoint.event.collector.EventCollectorStats.Status.DROPPED;
-import static com.proofpoint.event.collector.EventCollectorStats.Status.LOST;
-import static com.proofpoint.event.collector.EventCollectorStats.Status.REJECTED;
-import static javax.ws.rs.core.Response.Status.ACCEPTED;
 
 public class AsyncBatchProcessor implements BatchProcessor
 {
     private final BatchHandler handler;
     private final List<EventBatch> batchQueue;
-    private final AtomicReference<Future<?>> future = new AtomicReference<>();
 
     private final int maxOutstandingEvents;
     private final int maxQueueSize;
@@ -68,14 +60,13 @@ public class AsyncBatchProcessor implements BatchProcessor
     @Override
     public void put(EventBatch eventBatch)
     {
-        checkState(future.get() != null && !future.get().isCancelled(), "Processor is not running");
         checkNotNull(eventBatch, "eventBatch is null");
 
         synchronized (outstandingEventsGuard) {
 
             if (batchQueue.size() >= maxQueueSize) {
                 // batchQueue is full: drop current batch
-                onRecordsDropped(eventBatch.size());
+                recordMetrics(DROPPED, eventBatch.size());
             }
 
             batchQueue.add(eventBatch);
@@ -96,56 +87,43 @@ public class AsyncBatchProcessor implements BatchProcessor
                 outstandingEventCount += batch.size();
             }
 
-            final EventBatch finalBatch = batch;
-            ListenableFuture<StatusResponse> future = handler.processBatch(finalBatch);
-            addCallback(future, new FutureCallback<StatusResponse>()
-            {
-                @Override
-                public void onSuccess(@Nullable StatusResponse result)
-                {
-                    if (result.getStatusCode() == ACCEPTED.getStatusCode()) {
-                        onRecordsDelivered(finalBatch.size());
-                    } else {
-                        onRecordsRejected(finalBatch.size());
-                    }
-
-                    onCompleted();
-                }
-
-                @Override
-                public void onFailure(Throwable t)
-                {
-                    onRecordsRejected(finalBatch.size());
-                    onCompleted();
-                }
-
-                private void onCompleted()
-                {
-                    synchronized (outstandingEventsGuard) {
-                        outstandingEventCount -= finalBatch.size();
-                    }
-                    processPendingBatches();
-                }
-            });
+            processBatch(batch);
         }
     }
 
-    private void onRecordsDelivered(int eventCount)
+    private void processBatch(final EventBatch finalBatch)
     {
-        eventCollectorStats.outboundEvents(eventType, flowId, DELIVERED).add(eventCount);
+        ListenableFuture<Status> future = handler.processBatch(finalBatch);
+        addCallback(future, new FutureCallback<Status>()
+        {
+            @Override
+            public void onSuccess(@Nullable Status status)
+            {
+                recordMetrics(status, finalBatch.size());
+                onCompleted();
+            }
+
+            @Override
+            public void onFailure(Throwable t)
+            {
+                // record nothing ?
+                onCompleted();
+            }
+
+            private void onCompleted()
+            {
+                synchronized (outstandingEventsGuard) {
+                    outstandingEventCount -= finalBatch.size();
+                }
+
+                processPendingBatches();
+            }
+        });
+
     }
 
-    private void onRecordsLost(int eventCount)
+    private void recordMetrics(Status status, int eventCount)
     {
-        eventCollectorStats.outboundEvents(eventType, flowId, LOST).add(eventCount);
+        eventCollectorStats.outboundEvents(eventType, flowId, status).add(eventCount);
     }
-
-    private void onRecordsRejected(int eventCount)
-    {
-        eventCollectorStats.outboundEvents(eventType, flowId, REJECTED).add(eventCount);
-    }
-
-    private void onRecordsDropped(int eventCount)
-    {
-        eventCollectorStats.outboundEvents(eventType, flowId, DROPPED).add(eventCount);    }
 }

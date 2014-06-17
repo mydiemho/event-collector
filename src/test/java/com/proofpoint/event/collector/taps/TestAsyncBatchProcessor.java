@@ -16,307 +16,238 @@
 package com.proofpoint.event.collector.taps;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.SettableFuture;
 import com.proofpoint.event.collector.Event;
+import com.proofpoint.event.collector.EventCollectorStats;
+import com.proofpoint.event.collector.EventCollectorStats.Status;
 import com.proofpoint.event.collector.batch.EventBatch;
 import com.proofpoint.event.collector.taps.BatchProcessor.BatchHandler;
-import com.proofpoint.http.client.StatusResponseHandler.StatusResponse;
+import com.proofpoint.reporting.testing.TestingReportCollectionFactory;
+import com.proofpoint.stats.CounterStat;
 import org.joda.time.DateTime;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.List;
 
+import static com.proofpoint.event.collector.EventCollectorStats.Status.DELIVERED;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.DROPPED;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.LOST;
+import static com.proofpoint.event.collector.EventCollectorStats.Status.REJECTED;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static java.util.UUID.randomUUID;
 
 public class TestAsyncBatchProcessor
 {
-    private static final EventBatch ARBITRARY_BATCH = new EventBatch("foo", ImmutableList.of(event("foo")));
+    private static final String ARBITRARY_EVENT_TYPE = "foo";
+    private static final String ARBITRARY_FLOW_ID = "flowTest";
+
+    private static final EventBatch ARBITRARY_BATCH = new EventBatch(ARBITRARY_EVENT_TYPE, createEvents(ARBITRARY_EVENT_TYPE, 3));
     private static final EventBatch ARBITRARY_BATCH_A = ARBITRARY_BATCH;
-    private static final EventBatch ARBITRARY_BATCH_B = new EventBatch("bar", ImmutableList.of(event("bar")));
+    private static final EventBatch ARBITRARY_BATCH_B = new EventBatch(ARBITRARY_EVENT_TYPE, createEvents(ARBITRARY_EVENT_TYPE, 4));
+    private static final EventBatch ARBITRARY_BATCH_C = new EventBatch(ARBITRARY_EVENT_TYPE, createEvents(ARBITRARY_EVENT_TYPE, 5));
     private BatchHandler handler;
+    private EventCollectorStats eventCollectorStats;
+    private TestingReportCollectionFactory testingReportCollectionFactory;
 
     @BeforeMethod
     public void setup()
     {
         handler = mock(BatchHandler.class);
+        testingReportCollectionFactory = new TestingReportCollectionFactory();
+        eventCollectorStats = testingReportCollectionFactory.createReportCollection(EventCollectorStats.class);
     }
 
-    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "name is null")
-    public void testConstructorNullName()
+    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "eventType is null")
+    public void testConstructorNullEventType()
     {
-        new AsyncBatchProcessor(null, , new BatchProcessorConfig(), eventCollectorStats, handler);
+        new AsyncBatchProcessor(null, ARBITRARY_FLOW_ID, new BatchProcessorConfig(), eventCollectorStats, handler);
     }
 
-    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "handler is null")
-    public void testConstructorNullHandler()
+    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "flowId is null")
+    public void testConstructorNullFlowId()
     {
-        new AsyncBatchProcessor("name", , new BatchProcessorConfig(), eventCollectorStats, null);
+        new AsyncBatchProcessor(ARBITRARY_EVENT_TYPE, null, new BatchProcessorConfig(), eventCollectorStats, handler);
     }
 
     @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "config is null")
     public void testConstructorNullConfig()
     {
-        new AsyncBatchProcessor("name", , null, eventCollectorStats, handler);
+        new AsyncBatchProcessor(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, null, eventCollectorStats, handler);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "eventCollectorStats is null")
+    public void testConstructorNullEventCollectorStats()
+    {
+        new AsyncBatchProcessor(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig(), null, handler);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class, expectedExceptionsMessageRegExp = "handler is null")
+    public void testConstructorNullHandler()
+    {
+        new AsyncBatchProcessor(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig(), eventCollectorStats, null);
     }
 
     @Test
     public void testEnqueue()
             throws Exception
     {
+        BlockingBatchHandler blockingHandler = new BlockingBatchHandler();
         BatchProcessor processor = new AsyncBatchProcessor(
-                "foo", , new BatchProcessorConfig().setQueueSize(100), eventCollectorStats, handler
+                ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig().setQueueSize(100).setMaxOutstandingEvents(10), eventCollectorStats, blockingHandler
         );
 
-        processor.put(ARBITRARY_BATCH);
-        processor.put(ARBITRARY_BATCH);
-        processor.put(ARBITRARY_BATCH);
+        processor.put(ARBITRARY_BATCH_A);
+        processor.put(ARBITRARY_BATCH_B);
     }
 
     @Test
     public void testFullQueue()
             throws Exception
     {
-        BlockingBatchHandler blockingHandler = blockingHandler();
+        BlockingBatchHandler blockingHandler = new BlockingBatchHandler();
         BatchProcessor processor = new AsyncBatchProcessor(
-                "foo", , new BatchProcessorConfig().setQueueSize(1), eventCollectorStats, blockingHandler
-        );
+                ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig().setQueueSize(1).setMaxOutstandingEvents(3), eventCollectorStats, blockingHandler);
 
-        processor.start();
+        // queue has 0 batch, outstandingCount = 0
+        processor.put(ARBITRARY_BATCH_A);
 
-        blockingHandler.lock();
-        try {
-            // This will be processed, and its processing will block the handler
-            processor.put(ARBITRARY_BATCH);
-            assertEquals(blockingHandler.getDroppedEntries(), 0);
+        // 1 batch was pulled off for processing, queue is empty, outstandingCount = 3
+        processor.put(ARBITRARY_BATCH_B);
 
-            // Wait for the handler to pick up the item from the queue
-            assertTrue(blockingHandler.waitForProcessor(10));
+        // queue now has 1 batch, is full, outstandingCount = 3
+        processor.put(ARBITRARY_BATCH_C);
 
-            // This will remain in the queue because the processing
-            // thread has not yet been resumed
-            processor.put(ARBITRARY_BATCH);
-            assertEquals(blockingHandler.getDroppedEntries(), 0);
+        EventCollectorStats argumentVerifier = testingReportCollectionFactory.getArgumentVerifier(EventCollectorStats.class);
+        verify(argumentVerifier).outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, DROPPED);
+        verifyNoMoreInteractions(argumentVerifier);
 
-            // The queue is now full, this message will be dropped.
-            processor.put(ARBITRARY_BATCH);
-            assertEquals(blockingHandler.getDroppedEntries(), 1);
-        }
-        finally {
-            blockingHandler.resumeProcessor();
-            blockingHandler.unlock();
-        }
+        EventCollectorStats reportCollection = testingReportCollectionFactory.getReportCollection(EventCollectorStats.class);
+        CounterStat counterStat = reportCollection.outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, DROPPED);
+        verify(counterStat).add(ARBITRARY_BATCH_C.size());
+        verifyNoMoreInteractions(counterStat);
     }
 
     @Test
-    public void testContinueOnHandlerException()
-            throws InterruptedException
+    public void testBlockOnOutstandingEventsLimit()
+            throws Exception
     {
-        BlockingBatchHandler blockingHandler = blockingHandlerThatThrowsException(new RuntimeException());
+        BlockingBatchHandler blockingHandler = new BlockingBatchHandler();
         BatchProcessor processor = new AsyncBatchProcessor(
-                "foo", , new BatchProcessorConfig().setQueueSize(100), eventCollectorStats, blockingHandler
-        );
+                ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig().setQueueSize(5).setMaxOutstandingEvents(3), eventCollectorStats, blockingHandler);
 
-        blockingHandler.lock();
-        try {
-            processor.put(ARBITRARY_BATCH_A);
+        // queue has 0 batch, outstandingCount = 0
+        processor.put(ARBITRARY_BATCH_A);
+        assertEquals(blockingHandler.getProcessCount(), 1);
 
-            assertTrue(blockingHandler.waitForProcessor(10));
-            assertEquals(blockingHandler.getCallsToProcessBatch(), 1);
-        }
-        finally {
-            blockingHandler.resumeProcessor();
-            blockingHandler.unlock();
-        }
+        // batchA was pulled off for processing, queue is now empty, outstandingCount = 3
+        processor.put(ARBITRARY_BATCH_B);
+        assertEquals(blockingHandler.getProcessCount(), 1);
 
-        // When the processor unblocks, an exception (in its thread) will be thrown.
-        // This should not affect the processor.
-        blockingHandler.lock();
-        try {
-            processor.put(ARBITRARY_BATCH_B);
-            assertTrue(blockingHandler.waitForProcessor(10));
-            assertEquals(blockingHandler.getCallsToProcessBatch(), 2);
-        }
-        finally {
-            blockingHandler.resumeProcessor();
-            blockingHandler.unlock();
-        }
+        // queue now has 1 batch, is full, outstandingCount = 3
+        processor.put(ARBITRARY_BATCH_C);
+
+        blockingHandler.setDelivered();             // outstandingCount = 0
+        assertEquals(blockingHandler.getProcessCount(), 2);
     }
 
     @Test
-    public void testStopsWhenStopCalled()
-            throws InterruptedException
+    public void testProcessRecordCorrectMetrics()
+            throws Exception
     {
-        BlockingBatchHandler blockingHandler = blockingHandler();
+        BlockingBatchHandler blockingHandler = new BlockingBatchHandler();
         BatchProcessor processor = new AsyncBatchProcessor(
-                "foo", , new BatchProcessorConfig().setQueueSize(100), eventCollectorStats, blockingHandler
-        );
+                ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, new BatchProcessorConfig().setQueueSize(5), eventCollectorStats, blockingHandler);
 
-        processor.start();
+        // queue has 0 batch, outstandingCount = 0
+        processor.put(ARBITRARY_BATCH_A);
+        blockingHandler.setDelivered();
 
-        blockingHandler.lock();
-        try {
-            processor.put(ARBITRARY_BATCH_A);
+        EventCollectorStats argumentVerifier = testingReportCollectionFactory.getArgumentVerifier(EventCollectorStats.class);
+        verify(argumentVerifier).outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, DELIVERED);
+        verifyNoMoreInteractions(argumentVerifier);
 
-            assertTrue(blockingHandler.waitForProcessor(10));
+        EventCollectorStats reportCollection = testingReportCollectionFactory.getReportCollection(EventCollectorStats.class);
+        CounterStat counterStat = reportCollection.outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, DELIVERED);
+        verify(counterStat).add(ARBITRARY_BATCH_A.size());
+        verifyNoMoreInteractions(counterStat);
 
-            // The processor hasn't been resumed. Stop it!
-            processor.stop();
-        }
-        finally {
-            blockingHandler.unlock();
-        }
+        processor.put(ARBITRARY_BATCH_B);
+        blockingHandler.setRejected();
 
-        try {
-            processor.put(ARBITRARY_BATCH_B);
-            fail();
-        }
-        catch (IllegalStateException ex) {
-            assertEquals(ex.getMessage(), "Processor is not running");
-        }
+        verify(argumentVerifier).outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, REJECTED);
+        verifyNoMoreInteractions(argumentVerifier);
+
+        counterStat = reportCollection.outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, REJECTED);
+        verify(counterStat).add(ARBITRARY_BATCH_B.size());
+        verifyNoMoreInteractions(counterStat);
+
+        // queue now contains BatchB, is full, outstandingCount = 3
+        processor.put(ARBITRARY_BATCH_C);
+        blockingHandler.setLost();
+
+        verify(argumentVerifier).outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, LOST);
+        verifyNoMoreInteractions(argumentVerifier);
+
+        counterStat = reportCollection.outboundEvents(ARBITRARY_EVENT_TYPE, ARBITRARY_FLOW_ID, LOST);
+        verify(counterStat).add(ARBITRARY_BATCH_C.size());
+        verifyNoMoreInteractions(counterStat);
     }
 
-    @Test
-    public void testIgnoresExceptionsInHandler()
-            throws InterruptedException
+    private static Event createEvent(String type)
     {
-        BlockingBatchHandler blockingHandler = blockingHandlerThatThrowsException(new NullPointerException());
-        BatchProcessor processor = new AsyncBatchProcessor(
-                "foo", , new BatchProcessorConfig().setQueueSize(100), eventCollectorStats, blockingHandler
-        );
-        processor.start();
-
-        blockingHandler.lock();
-        try {
-            processor.put(ARBITRARY_BATCH_A);
-            assertTrue(blockingHandler.waitForProcessor(10));
-            blockingHandler.resumeProcessor();
-        }
-        finally {
-            blockingHandler.unlock();
-        }
-        assertEquals(blockingHandler.getCallsToProcessBatch(), 1);
-
-        blockingHandler.lock();
-        try {
-            processor.put(ARBITRARY_BATCH_B);
-            assertTrue(blockingHandler.waitForProcessor(10));
-            blockingHandler.resumeProcessor();
-        }
-        finally {
-            blockingHandler.unlock();
-        }
-        assertEquals(blockingHandler.getCallsToProcessBatch(), 2);
+        return new Event(type, randomUUID().toString(), "host", DateTime.now(), ImmutableMap.<String, Object>of());
     }
 
-    private static Event event(String type)
+    private static List<Event> createEvents(String type, int count)
     {
-        return new Event(type, UUID.randomUUID().toString(), "localhost", DateTime.now(), Collections.<String, Object>emptyMap());
+        ImmutableList.Builder<Event> eventBuilder = ImmutableList.builder();
+        for (int i = 0; i < count; ++i) {
+            eventBuilder.add(createEvent(type));
+        }
+        return eventBuilder.build();
     }
 
-    private static BlockingBatchHandler blockingHandler()
-    {
-        return new BlockingBatchHandler(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-            }
-        });
-    }
-
-    private static BlockingBatchHandler blockingHandlerThatThrowsException(final RuntimeException exception)
-    {
-        return new BlockingBatchHandler(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                throw exception;
-            }
-        });
-    }
-
+    // block when outstanding events exceed limit
     private static class BlockingBatchHandler implements BatchHandler
     {
-        private final Lock lock = new ReentrantLock();
-        private final Condition externalCondition = lock.newCondition();
-        private final Condition internalCondition = lock.newCondition();
-        private final Runnable onProcess;
-        private long droppedEntries = 0;
-        private long callsToProcessBatch = 0;
+        private int processCount;
+        private SettableFuture<Status> settableFuture;
 
-        public BlockingBatchHandler(Runnable onProcess)
+        public BlockingBatchHandler()
         {
-            this.onProcess = onProcess;
         }
 
         @Override
-        public SettableFuture<StatusResponse> processBatch(EventBatch entry)
+        public SettableFuture<Status> processBatch(EventBatch eventBatch)
         {
-            // Wait for the right time to run
-            lock.lock();
-            callsToProcessBatch += 1;
-            try {
-                // Signal that we've started running
-                externalCondition.signal();
-                try {
-                    // Block
-                    internalCondition.await();
-                }
-                catch (InterruptedException ignored) {
-                }
-                onProcess.run();
-            }
-            finally {
-                lock.unlock();
-            }
-            return null;
+            settableFuture = SettableFuture.create();
+            processCount += 1;
+            return settableFuture;
         }
 
-        @Override
-        public void notifyEntriesDropped(int count)
+        private void setDelivered()
         {
-            droppedEntries += count;
+            settableFuture.set(DELIVERED);
         }
 
-        public void lock()
+        private void setRejected()
         {
-            lock.lock();
+            settableFuture.set(REJECTED);
         }
 
-        public void unlock()
+        private void setLost()
         {
-            lock.unlock();
+            settableFuture.set(LOST);
         }
 
-        public boolean waitForProcessor(long seconds)
-                throws InterruptedException
+        private int getProcessCount()
         {
-            return externalCondition.await(seconds, TimeUnit.SECONDS);
-        }
-
-        public void resumeProcessor()
-        {
-            internalCondition.signal();
-        }
-
-        public long getDroppedEntries()
-        {
-            return droppedEntries;
-        }
-
-        public long getCallsToProcessBatch()
-        {
-            return callsToProcessBatch;
+            return processCount;
         }
     }
 }
