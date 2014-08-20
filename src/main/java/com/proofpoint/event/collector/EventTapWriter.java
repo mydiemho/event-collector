@@ -29,6 +29,7 @@ import org.weakref.jmx.Managed;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
@@ -161,6 +162,13 @@ public class EventTapWriter implements EventWriter
     }
 
     private Map<String, Map<String, FlowInfo>> constructFlowInfoFromDiscovery()
+    @Override
+    public void distribute(Event event)
+            throws IOException
+    {
+        write(event);
+    }
+
     {
         List<ServiceDescriptor> descriptors = selector.selectAllServices();
         // First level is EventType, second is flowId
